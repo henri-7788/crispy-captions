@@ -46,7 +46,8 @@ router.post("/", (req, res) => {
   fs.writeFileSync(assPath, assContent, "utf8");
 
   const outputPath = path.join(__dirname, "../../outputs", `${jobId}_output.mp4`);
-  const filterStr = `ass=${toFFmpegPath(assPath)}`;
+  const fontsDir = path.join(__dirname, "../../");
+  const filterStr = `ass=${toFFmpegPath(assPath)}:fontsdir=${toFFmpegPath(fontsDir)}`;
   console.log("FFmpeg filter:", filterStr);
 
   sendSSE({ type: "progress", percent: 0, step: "Rendering..." });

@@ -1,7 +1,7 @@
 const PRESETS = {
-  tiktok: { highlightColor: "#FFFF00", dimColor: "#AAAAAA", fontName: "Arial", fontSize: 52, position: "bottom" },
-  reels:  { highlightColor: "#00FF88", dimColor: "#888888", fontName: "Impact", fontSize: 56, position: "bottom" },
-  clean:  { highlightColor: "#FFFFFF", dimColor: "#666666", fontName: "Arial", fontSize: 48, position: "bottom" },
+  tiktok: { highlightColor: "#FFFF00", dimColor: "#AAAAAA", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 52, position: "bottom" },
+  reels:  { highlightColor: "#00FF88", dimColor: "#888888", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 56, position: "bottom" },
+  clean:  { highlightColor: "#FFFFFF", dimColor: "#666666", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 48, position: "bottom" },
 };
 
 const PRESET_LABELS = {
@@ -75,6 +75,7 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
             onChange={(e) => update("fontName", e.target.value)}
             className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-3 py-1.5"
           >
+            <option value="THEBOLDFONT-FREEVERSION">THE BOLD FONT</option>
             <option value="Arial">Arial</option>
             <option value="Impact">Impact</option>
             <option value="Montserrat">Montserrat</option>

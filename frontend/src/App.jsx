@@ -8,7 +8,7 @@ import DownloadButton from "./components/DownloadButton";
 const DEFAULT_STYLE = {
   highlightColor: "#FFFF00",
   dimColor: "#AAAAAA",
-  fontName: "Arial",
+  fontName: "THEBOLDFONT-FREEVERSION",
   fontSize: 52,
   position: "bottom",
 };

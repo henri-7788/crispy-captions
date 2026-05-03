@@ -55,8 +55,6 @@ function buildDialogueLine(chunk, activeIndex, posY, style) {
   const activeWord = chunk[activeIndex];
   const start = toASSTimestamp(activeWord.start);
   const end = toASSTimestamp(activeWord.end);
-  const durationMs = Math.round((activeWord.end - activeWord.start) * 1000);
-  const popDur = Math.min(200, Math.round(durationMs / 2));
 
   const highlightColor = toASSColor(style.highlightColor || "#FFFF00");
   const dimColor = toASSColor(style.dimColor || "#808080");
@@ -64,7 +62,7 @@ function buildDialogueLine(chunk, activeIndex, posY, style) {
   const textParts = chunk.map((w, i) => {
     const word = w.word.trim().toUpperCase();
     if (i === activeIndex) {
-      return `{\\c${highlightColor}\\t(0,${popDur},\\fscx122\\fscy122)\\t(${popDur},${durationMs},\\fscx100\\fscy100)}${word}`;
+      return `{\\c${highlightColor}}${word}`;
     }
     return `{\\c${dimColor}}${word}`;
   });
