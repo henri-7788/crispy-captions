@@ -1,4 +1,5 @@
-const MAX_WORDS_PER_CHUNK = 5;
+const DEFAULT_MAX_PER_CHUNK = 5;
+const GAP_THRESHOLD = 0.5; // Sekunden Pause → neuer Chunk
 
 function toASSTimestamp(seconds) {
   const h = Math.floor(seconds / 3600);
@@ -16,11 +17,25 @@ function toASSColor(hex) {
   return `&H00${b}${g}${r}&`;
 }
 
-function chunkWords(words) {
+function chunkWords(words, maxPerChunk = DEFAULT_MAX_PER_CHUNK) {
   const chunks = [];
-  for (let i = 0; i < words.length; i += MAX_WORDS_PER_CHUNK) {
-    chunks.push(words.slice(i, i + MAX_WORDS_PER_CHUNK));
+  let current = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const prev = words[i - 1];
+
+    const speechGap = prev && (word.start - prev.end) > GAP_THRESHOLD;
+    const chunkFull = current.length >= maxPerChunk;
+
+    if ((speechGap || chunkFull) && current.length > 0) {
+      chunks.push(current);
+      current = [];
+    }
+    current.push(word);
   }
+
+  if (current.length > 0) chunks.push(current);
   return chunks;
 }
 
@@ -28,6 +43,10 @@ function buildHeader(style) {
   const primaryColor = toASSColor(style.highlightColor || "#FFFF00");
   const fontName = style.fontName || "Arial";
   const fontSize = style.fontSize || 52;
+
+  const noOutline = style.outlineColor === "none";
+  const outlineColor = noOutline ? "&H00000000&" : toASSColor(style.outlineColor || "#000000");
+  const outlineSize = noOutline ? 0 : 3.5;
 
   return `[Script Info]
 ScriptType: v4.00+
@@ -37,7 +56,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontName},${fontSize},${primaryColor},&H000000FF&,&H00000000&,&H96000000&,-1,0,0,0,100,100,0,0,1,3.5,1.5,2,80,80,60,1
+Style: Default,${fontName},${fontSize},${primaryColor},&H000000FF&,${outlineColor},&H96000000&,-1,0,0,0,100,100,0,0,1,${outlineSize},1.5,2,80,80,60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
@@ -47,7 +66,7 @@ function getPositionY(position) {
   switch (position) {
     case "top": return 170;
     case "center": return 960;
-    default: return 1750; // bottom
+    default: return 1750;
   }
 }
 
@@ -61,10 +80,9 @@ function buildDialogueLine(chunk, activeIndex, posY, style) {
 
   const textParts = chunk.map((w, i) => {
     const word = w.word.trim().toUpperCase();
-    if (i === activeIndex) {
-      return `{\\c${highlightColor}}${word}`;
-    }
-    return `{\\c${dimColor}}${word}`;
+    return i === activeIndex
+      ? `{\\c${highlightColor}}${word}`
+      : `{\\c${dimColor}}${word}`;
   });
 
   const text = `{\\an2\\pos(540,${posY})}${textParts.join(" ")}`;
@@ -75,7 +93,8 @@ function generateASS(words, style = {}) {
   if (!words || words.length === 0) return "";
 
   const posY = getPositionY(style.position);
-  const chunks = chunkWords(words);
+  const maxPerChunk = style.wordsPerLine || DEFAULT_MAX_PER_CHUNK;
+  const chunks = chunkWords(words, maxPerChunk);
   const lines = [buildHeader(style)];
 
   for (const chunk of chunks) {

@@ -8,9 +8,11 @@ import DownloadButton from "./components/DownloadButton";
 const DEFAULT_STYLE = {
   highlightColor: "#FFFF00",
   dimColor: "#AAAAAA",
+  outlineColor: "#000000",
   fontName: "THEBOLDFONT-FREEVERSION",
   fontSize: 52,
   position: "bottom",
+  wordsPerLine: 5,
 };
 
 export default function App() {
