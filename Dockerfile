@@ -11,9 +11,10 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
-# Systembibliotheken für den @ffmpeg-installer Binary
+# Systembibliotheken: fontconfig wird von libass (im FFmpeg-Binary) für Font-Discovery benötigt
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Backend-Dependencies (nur Production)

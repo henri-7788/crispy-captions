@@ -44,26 +44,44 @@ router.post("/", (req, res) => {
   const assContent = generateASS(words, style || {});
   const assPath = getTempAssPath(jobId);
   fs.writeFileSync(assPath, assContent, "utf8");
+  console.log(`[render] ASS: ${assPath} | ${assContent.length} bytes | ${(assContent.match(/^Dialogue:/gm) || []).length} Dialogue-Lines`);
+
+  // Font neben die ASS-Datei ins Temp-Verzeichnis kopieren → libass findet ihn sicher
+  const tmpDir = os.tmpdir();
+  const fontSrc = path.join(__dirname, "../../THEBOLDFONT-FREEVERSION.ttf");
+  const fontTmp = path.join(tmpDir, "THEBOLDFONT-FREEVERSION.ttf");
+  if (fs.existsSync(fontSrc) && !fs.existsSync(fontTmp)) {
+    fs.copyFileSync(fontSrc, fontTmp);
+  }
 
   const outputPath = path.join(__dirname, "../../outputs", `${jobId}_output.mp4`);
-  const fontsDir = path.join(__dirname, "../../");
-  const filterStr = `ass=${toFFmpegPath(assPath)}:fontsdir=${toFFmpegPath(fontsDir)}`;
-  console.log("FFmpeg filter:", filterStr);
+  const filterStr = `ass=${toFFmpegPath(assPath)}:fontsdir=${toFFmpegPath(tmpDir)}`;
+  console.log("[render] filter:", filterStr);
 
   sendSSE({ type: "progress", percent: 0, step: "Rendering..." });
 
-  ffmpeg(videoPath)
+  ffmpeg.ffprobe(videoPath, (probeErr, metadata) => {
+    const totalDuration = metadata?.format?.duration || 0;
+
+    ffmpeg(videoPath)
     .videoFilters(filterStr)
     .outputOptions([
       "-c:v libx264",
       "-preset fast",
       "-crf 23",
       "-c:a copy",
-      "-pix_fmt yuv420p",  // Pixel-Format explizit setzen (verhindert "Invalid argument")
+      "-pix_fmt yuv420p",
     ])
     .output(outputPath)
-    .on("progress", ({ percent }) => {
-      sendSSE({ type: "progress", percent: Math.round(percent || 0) });
+    .on("start", (cmd) => console.log("[render] FFmpeg cmd:", cmd))
+    .on("progress", ({ timemark }) => {
+      let percent = 0;
+      if (totalDuration > 0 && timemark) {
+        const parts = timemark.split(":").map(parseFloat);
+        const seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        percent = Math.min(99, Math.round((seconds / totalDuration) * 100));
+      }
+      sendSSE({ type: "progress", percent, step: "Rendering..." });
     })
     .on("end", () => {
       if (fs.existsSync(assPath)) fs.unlinkSync(assPath);
@@ -80,6 +98,7 @@ router.post("/", (req, res) => {
       res.end();
     })
     .run();
+  });
 });
 
 module.exports = router;
