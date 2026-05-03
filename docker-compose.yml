@@ -4,7 +4,7 @@ services:
     container_name: crispy-captions
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - NODE_ENV=production
@@ -15,14 +15,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-
-  # Optional: Cloudflare Tunnel (Token in .env eintragen → CLOUDFLARE_TUNNEL_TOKEN)
-  # cloudflared:
-  #   image: cloudflare/cloudflared:latest
-  #   container_name: crispy-cloudflared
-  #   restart: unless-stopped
-  #   command: tunnel --no-autoupdate run
-  #   environment:
-  #     - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-  #   depends_on:
-  #     - crispy-captions
