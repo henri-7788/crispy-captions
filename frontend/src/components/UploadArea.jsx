@@ -1,6 +1,20 @@
 import { useState, useRef } from "react";
 import { uploadVideo } from "../api";
 
+function getVideoDimensions(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      resolve({ width: video.videoWidth, height: video.videoHeight });
+      URL.revokeObjectURL(url);
+    };
+    video.onerror = () => resolve(null);
+    video.src = url;
+  });
+}
+
 export default function UploadArea({ onUploadComplete }) {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -12,31 +26,30 @@ export default function UploadArea({ onUploadComplete }) {
   const MAX_MB = 500;
 
   function validateFile(file) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return "Nur MP4 und MOV Dateien erlaubt";
-    }
-    if (file.size > MAX_MB * 1024 * 1024) {
-      return `Datei zu groß (max. ${MAX_MB} MB)`;
-    }
+    if (!ALLOWED_TYPES.includes(file.type)) return "Nur MP4 und MOV Dateien erlaubt";
+    if (file.size > MAX_MB * 1024 * 1024) return `Datei zu groß (max. ${MAX_MB} MB)`;
     return null;
   }
 
   async function handleFile(file) {
     const validationError = validateFile(file);
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
+    if (validationError) { setError(validationError); return; }
     setError(null);
     setUploading(true);
     setUploadProgress(0);
-    try {
-      const { data } = await uploadVideo(file, setUploadProgress);
-      onUploadComplete(data);
-    } catch (err) {
-      setError(err.response?.data?.error || "Upload fehlgeschlagen");
-    } finally {
-      setUploading(false);
+
+    // Dimensionen parallel zum Upload ermitteln
+    const [dimensions, uploadResult] = await Promise.all([
+      getVideoDimensions(file),
+      uploadVideo(file, setUploadProgress).catch((err) => {
+        setError(err.response?.data?.error || "Upload fehlgeschlagen");
+        return null;
+      }),
+    ]);
+
+    setUploading(false);
+    if (uploadResult) {
+      onUploadComplete({ ...uploadResult.data, videoRatio: dimensions });
     }
   }
 

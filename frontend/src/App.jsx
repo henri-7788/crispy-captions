@@ -6,8 +6,8 @@ import ProgressBar from "./components/ProgressBar";
 import DownloadButton from "./components/DownloadButton";
 
 const DEFAULT_STYLE = {
-  highlightColor: "#FFFF00",
-  dimColor: "#AAAAAA",
+  highlightColor: "#26E200",
+  dimColor: "#ffffff",
   outlineColor: "#000000",
   fontName: "THEBOLDFONT-FREEVERSION",
   fontSize: 52,
@@ -19,14 +19,16 @@ export default function App() {
   const [step, setStep] = useState("upload");
   const [jobId, setJobId] = useState(null);
   const [filename, setFilename] = useState(null);
+  const [videoRatio, setVideoRatio] = useState(null);
   const [words, setWords] = useState([]);
   const [style, setStyle] = useState(DEFAULT_STYLE);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState(null);
 
-  function handleUploadComplete({ jobId, filename }) {
+  function handleUploadComplete({ jobId, filename, videoRatio }) {
     setJobId(jobId);
     setFilename(filename);
+    setVideoRatio(videoRatio);
     setStep("styling");
   }
 
@@ -57,6 +59,7 @@ export default function App() {
     setStep("upload");
     setJobId(null);
     setFilename(null);
+    setVideoRatio(null);
     setWords([]);
     setStyle(DEFAULT_STYLE);
     setError(null);
@@ -83,6 +86,7 @@ export default function App() {
           onStyleChange={setStyle}
           onRenderStart={handleRenderStart}
           transcribing={transcribing}
+          videoRatio={videoRatio}
         />
       )}
       {step === "rendering" && (
