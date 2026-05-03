@@ -33,7 +33,8 @@ function cleanupOnStart() {
 }
 cleanupOnStart();
 
-app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:5173" }));
+const isProd = process.env.NODE_ENV === "production";
+app.use(cors({ origin: isProd ? false : (process.env.CORS_ORIGIN || "http://localhost:5173") }));
 app.use(express.json());
 
 app.use("/api/upload", uploadRoute);
@@ -54,5 +55,12 @@ app.get("/api/download/:jobId", (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+
+// In Production: gebautes Frontend ausliefern
+if (isProd) {
+  const distPath = path.join(__dirname, "../frontend/dist");
+  app.use(express.static(distPath));
+  app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
+}
 
 app.listen(PORT, () => console.log(`Backend läuft auf http://localhost:${PORT}`));

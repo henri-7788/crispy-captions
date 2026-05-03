@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+// Leer = relative URLs (Production: gleiches Origin). Lokal: http://localhost:3001
+const BASE = import.meta.env.VITE_API_URL ?? "";
 
 export function uploadVideo(file, onProgress) {
   const form = new FormData();
