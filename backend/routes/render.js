@@ -67,6 +67,7 @@ router.post("/", (req, res) => {
     })
     .on("end", () => {
       if (fs.existsSync(assPath)) fs.unlinkSync(assPath);
+      if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
       sendSSE({ type: "done", downloadUrl: `/api/download/${jobId}` });
       res.end();
     })
@@ -74,6 +75,7 @@ router.post("/", (req, res) => {
       console.error("FFmpeg-Fehler:", err.message);
       console.error("FFmpeg stderr:", stderr);
       if (fs.existsSync(assPath)) fs.unlinkSync(assPath);
+      if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
       sendSSE({ type: "error", message: err.message });
       res.end();
     })
