@@ -1,7 +1,23 @@
-import { getDownloadUrl } from "../api";
+import { useState } from "react";
+import { downloadVideo } from "../api";
 
 export default function DownloadButton({ jobId, onReset }) {
-  const url = getDownloadUrl(jobId);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function handleDownload() {
+    setDownloading(true);
+    setError(null);
+    try {
+      await downloadVideo(jobId);
+    } catch (err) {
+      setError(err.response?.status === 410
+        ? "Video wurde bereits heruntergeladen."
+        : "Download fehlgeschlagen");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">
@@ -15,17 +31,19 @@ export default function DownloadButton({ jobId, onReset }) {
       <h2 className="text-3xl font-bold text-white mb-2">Fertig!</h2>
       <p className="text-zinc-400 mb-10 text-sm">Dein Video mit animierten Untertiteln ist bereit.</p>
 
-      <a
-        href={url}
-        download="crispy_captions_output.mp4"
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
         className="w-full max-w-sm py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-bold text-lg rounded-2xl
-          transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 mb-4"
+          transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mb-4"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
-        Video herunterladen
-      </a>
+        {downloading ? "Lädt..." : "Video herunterladen"}
+      </button>
+
+      {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
       <button
         onClick={onReset}

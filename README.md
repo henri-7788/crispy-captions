@@ -63,6 +63,44 @@ npm run dev
 4. FFmpeg brennt Untertitel ins Video ein
 5. Fertiges Video wird zum Download bereitgestellt
 
+## Login & Admin
+
+- Alle Funktionen erfordern einen Login. User werden in SQLite gespeichert (`data/crispy.db`, im Docker-Volume `crispy-data`).
+- Der erste Admin wird beim Start aus `ADMIN_EMAIL` / `ADMIN_PASSWORD` angelegt, falls noch keiner existiert.
+- Registrierung nur mit Invite-Code. Admins erstellen Codes im **Admin**-Bereich (Button oben rechts) und verschicken den Einladungslink (`/?invite=CODE`).
+- Im Admin-Bereich: User sperren/entsperren, zum Admin machen, Passwort zurücksetzen, löschen.
+- `JWT_SECRET` muss in Production gesetzt sein.
+
+## API
+
+Authentifizierung mit demselben Token wie im Web-UI (`Authorization: Bearer <token>`).
+
+| Methode | Pfad | Beschreibung |
+|---|---|---|
+| `POST` | `/api/auth/login` | `{ email, password }` → `{ token, user }` |
+| `POST` | `/api/v1/jobs` | multipart: `video` (MP4/MOV) + optional `style` (JSON) → `202 { jobId, statusUrl }` |
+| `GET` | `/api/v1/jobs/:id` | `{ status, progress, error?, downloadUrl? }`, Status: `queued` → `transcribing` → `rendering` → `done` / `error` |
+| `GET` | `/api/v1/jobs/:id/download` | fertiges MP4 (einmalig, danach gelöscht → Status `downloaded`) |
+| `GET` | `/api/v1/jobs` | eigene Jobs (max. 100) |
+
+`style`-Felder (alle optional): `highlightColor`, `dimColor` (`#RRGGBB`), `outlineColor` (`#RRGGBB` oder `none`), `fontName`, `fontSize` (12–200), `position` (`top`/`center`/`bottom`), `wordsPerLine` (1–15).
+
+```bash
+TOKEN=$(curl -s -X POST localhost:3001/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"a@b.de","password":"..."}' | jq -r .token)
+curl -X POST localhost:3001/api/v1/jobs -H "Authorization: Bearer $TOKEN" \
+  -F video=@clip.mp4 -F 'style={"highlightColor":"#26E200","position":"bottom"}'
+curl localhost:3001/api/v1/jobs/<jobId> -H "Authorization: Bearer $TOKEN"
+curl -o out.mp4 localhost:3001/api/v1/jobs/<jobId>/download -H "Authorization: Bearer $TOKEN"
+```
+
+Gleichzeitige Renders (Web-UI und API zusammen) sind auf `MAX_CONCURRENT_RENDERS` (Default 2) begrenzt, weitere warten in der Queue. Jobs gehen bei einem Server-Neustart verloren.
+
+Limits:
+- `MAX_TRANSCRIPTIONS_PER_DAY` (Default 30): Transkriptionen pro User in 24 Stunden, Admins ausgenommen, `0` = unbegrenzt. Bei Überschreitung antwortet der Server mit `429`.
+- Login: max. 10 Fehlversuche pro IP in 15 Minuten. Registrierung: max. 10 Versuche pro IP und Stunde.
+- `TRUST_PROXY`: Anzahl Reverse-Proxies vor dem Server, damit das Rate-Limiting die echte Client-IP sieht (in `docker-compose.yml` Default `1`).
+
 ## ASS Subtitle Animations (Kern-Feature)
 
 Die `.ass`-Datei definiert pro Wort:

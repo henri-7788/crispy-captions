@@ -79,7 +79,8 @@ function buildDialogueLine(chunk, activeIndex, posY, style) {
   const dimColor = toASSColor(style.dimColor || "#808080");
 
   const textParts = chunk.map((w, i) => {
-    const word = w.word.trim().toUpperCase();
+    // { } \ sind ASS-Steuerzeichen und würden als Override-Tags interpretiert
+    const word = w.word.replace(/[{}\\]/g, "").trim().toUpperCase();
     return i === activeIndex
       ? `{\\c${highlightColor}}${word}`
       : `{\\c${dimColor}}${word}`;

@@ -7,6 +7,11 @@ const ffmpeg = require("fluent-ffmpeg");
 const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
+const { requireAuth } = require("./middleware/auth");
+const { getOwnedJob } = require("./services/jobs");
+const authRoute = require("./routes/auth");
+const adminRoute = require("./routes/admin");
+const apiRoute = require("./routes/api");
 const uploadRoute = require("./routes/upload");
 const transcribeRoute = require("./routes/transcribe");
 const renderRoute = require("./routes/render");
@@ -34,24 +39,26 @@ function cleanupOnStart() {
 cleanupOnStart();
 
 const isProd = process.env.NODE_ENV === "production";
+// Hinter einem Reverse-Proxy: echte Client-IP aus X-Forwarded-For (wichtig fürs Rate-Limiting)
+if (process.env.TRUST_PROXY) {
+  const hops = Number(process.env.TRUST_PROXY);
+  app.set("trust proxy", Number.isNaN(hops) ? process.env.TRUST_PROXY : hops);
+}
 app.use(cors({ origin: isProd ? false : (process.env.CORS_ORIGIN || "http://localhost:5173") }));
 app.use(express.json());
 
-app.use("/api/upload", uploadRoute);
-app.use("/api/transcribe", transcribeRoute);
-app.use("/api/render", renderRoute);
+app.use("/api/auth", authRoute);
+app.use("/api/admin", adminRoute);
+app.use("/api/v1", requireAuth, apiRoute);
+app.use("/api/upload", requireAuth, uploadRoute);
+app.use("/api/transcribe", requireAuth, transcribeRoute);
+app.use("/api/render", requireAuth, renderRoute);
 
-app.get("/api/download/:jobId", (req, res) => {
-  const filePath = path.join(OUTPUTS_DIR, `${req.params.jobId}_output.mp4`);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: "File not found" });
-  }
-  res.download(filePath, "crispy_captions_output.mp4", (err) => {
-    // Nach erfolgreichem Download Output-Datei löschen
-    if (!err && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  });
+app.get("/api/download/:jobId", requireAuth, (req, res) => {
+  const job = getOwnedJob(req.params.jobId, req.user.id);
+  if (!job) return res.status(404).json({ error: "File not found" });
+  // Nach erfolgreichem Download wird die Output-Datei gelöscht
+  apiRoute.sendOutput(job, res);
 });
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));

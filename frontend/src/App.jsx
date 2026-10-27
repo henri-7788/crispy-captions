@@ -4,6 +4,9 @@ import UploadArea from "./components/UploadArea";
 import StylePicker from "./components/StylePicker";
 import ProgressBar from "./components/ProgressBar";
 import DownloadButton from "./components/DownloadButton";
+import LoginPage from "./components/LoginPage";
+import AdminPanel from "./components/AdminPanel";
+import { useAuth } from "./auth";
 
 const DEFAULT_STYLE = {
   highlightColor: "#26E200",
@@ -16,6 +19,51 @@ const DEFAULT_STYLE = {
 };
 
 export default function App() {
+  const { user, loading, logout } = useAuth();
+  const [view, setView] = useState("app");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-zinc-800 border-t-yellow-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-zinc-950">
+        <LoginPage />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-zinc-950">
+      <header className="fixed top-4 right-4 z-40 flex items-center gap-3 text-sm">
+        <span className="text-zinc-500 hidden sm:inline">{user.email}</span>
+        {user.role === "admin" && (
+          <button
+            onClick={() => setView(view === "admin" ? "app" : "admin")}
+            className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+          >
+            {view === "admin" ? "Zurück" : "Admin"}
+          </button>
+        )}
+        <button
+          onClick={() => { setView("app"); logout(); }}
+          className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
+        >
+          Abmelden
+        </button>
+      </header>
+
+      {view === "admin" && user.role === "admin" ? <AdminPanel /> : <CaptionFlow />}
+    </div>
+  );
+}
+
+function CaptionFlow() {
   const [step, setStep] = useState("upload");
   const [jobId, setJobId] = useState(null);
   const [filename, setFilename] = useState(null);
@@ -67,7 +115,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div>
       {error && step !== "upload" && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
           <div className="bg-red-950/90 border border-red-800 text-red-300 rounded-xl px-5 py-3 text-sm flex items-center gap-3">
