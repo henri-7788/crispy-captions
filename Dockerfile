@@ -7,7 +7,18 @@ COPY frontend/ ./
 # Kein VITE_API_URL → relative URLs (gleiches Origin in Production)
 RUN npm run build
 
-# Stage 2: Production-Image (better-sqlite3 braucht Node >= 22)
+# Stage 2: Backend-Dependencies bauen (better-sqlite3 kompiliert per node-gyp → braucht python3, make, g++)
+FROM node:22-slim AS backend-deps
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Stage 3: Production-Image (better-sqlite3 braucht Node >= 22)
 FROM node:22-slim
 WORKDIR /app
 
@@ -17,9 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
-# Backend-Dependencies (nur Production)
+# Backend-Dependencies (nur Production, in Stage 2 gebaut)
 COPY package*.json ./
-RUN npm install --omit=dev
+COPY --from=backend-deps /app/node_modules ./node_modules
 
 # Backend-Quellcode + Font
 COPY backend/ ./backend/
