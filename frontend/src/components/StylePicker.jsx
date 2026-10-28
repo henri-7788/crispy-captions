@@ -1,9 +1,12 @@
+import { useEffect, useState } from "react";
 import MockupPreview from "./MockupPreview";
+import { presets as presetsApi } from "../api";
+import { captionLayout, pxToPercent, POSITION_PRESETS } from "../captionLayout";
 
 const PRESETS = {
-  tiktok: { highlightColor: "#FFFF00", dimColor: "#AAAAAA", outlineColor: "#000000", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 52, position: "bottom", wordsPerLine: 5 },
-  reels:  { highlightColor: "#00FF88", dimColor: "#888888", outlineColor: "#000000", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 56, position: "bottom", wordsPerLine: 4 },
-  clean:  { highlightColor: "#FFFFFF", dimColor: "#666666", outlineColor: "none",    fontName: "THEBOLDFONT-FREEVERSION", fontSize: 48, position: "bottom", wordsPerLine: 5 },
+  tiktok: { highlightColor: "#FFFF00", dimColor: "#AAAAAA", outlineColor: "#000000", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 52, positionY: 91.15, wordsPerLine: 5 },
+  reels:  { highlightColor: "#00FF88", dimColor: "#888888", outlineColor: "#000000", fontName: "THEBOLDFONT-FREEVERSION", fontSize: 56, positionY: 91.15, wordsPerLine: 4 },
+  clean:  { highlightColor: "#FFFFFF", dimColor: "#666666", outlineColor: "none",    fontName: "THEBOLDFONT-FREEVERSION", fontSize: 48, positionY: 91.15, wordsPerLine: 5 },
 };
 
 const PRESET_LABELS = {
@@ -35,13 +38,111 @@ function ColorPicker({ label, value, onChange }) {
   );
 }
 
-export default function StylePicker({ style, onStyleChange, onRenderStart, transcribing, videoRatio }) {
+// Eigene Presets des Users: laden, anwenden, speichern (gleicher Name überschreibt), löschen
+function UserPresets({ style, onApply }) {
+  const [items, setItems] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState("");
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    presetsApi.list()
+      .then(({ data }) => setItems(data.presets))
+      .catch(() => setError("Presets konnten nicht geladen werden"));
+  }, []);
+
+  async function save(e) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      const { data } = await presetsApi.save(name.trim(), style);
+      setItems((prev) => [...prev.filter((p) => p.id !== data.preset.id), data.preset]);
+      setName("");
+      setSaving(false);
+      setError(null);
+    } catch (err) {
+      setError(err.response?.data?.error || "Speichern fehlgeschlagen");
+    }
+  }
+
+  async function remove(preset) {
+    if (!confirm(`Preset „${preset.name}" löschen?`)) return;
+    try {
+      await presetsApi.remove(preset.id);
+      setItems((prev) => prev.filter((p) => p.id !== preset.id));
+    } catch (err) {
+      setError(err.response?.data?.error || "Löschen fehlgeschlagen");
+    }
+  }
+
+  return (
+    <div className="mb-6">
+      <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Meine Presets</p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((preset) => (
+          <span key={preset.id} className="flex items-center rounded-full bg-zinc-800 text-zinc-200 text-sm overflow-hidden">
+            <button onClick={() => onApply(preset.style)} className="pl-3 pr-2 py-1.5 hover:bg-zinc-700 transition-colors">
+              {preset.name}
+            </button>
+            <button
+              onClick={() => remove(preset)}
+              title="Löschen"
+              className="pr-3 pl-1 py-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-700 transition-colors"
+            >
+              ✕
+            </button>
+          </span>
+        ))}
+        {!saving && (
+          <button
+            onClick={() => setSaving(true)}
+            className="px-3 py-1.5 rounded-full border border-dashed border-zinc-600 text-zinc-400 text-sm hover:border-yellow-400 hover:text-yellow-400 transition-colors"
+          >
+            + Aktuellen Stil speichern
+          </button>
+        )}
+      </div>
+      {saving && (
+        <form onSubmit={save} className="flex gap-2 mt-2">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
+            placeholder="Name, z. B. Podcast"
+            className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-3 py-1.5"
+          />
+          <button type="submit" className="px-3 py-1.5 rounded-lg bg-yellow-400 text-black text-sm font-medium hover:bg-yellow-300">
+            Speichern
+          </button>
+          <button type="button" onClick={() => { setSaving(false); setName(""); }} className="px-2 text-zinc-500 hover:text-zinc-300 text-sm">
+            Abbrechen
+          </button>
+        </form>
+      )}
+      {saving && items.some((p) => p.name === name.trim()) && (
+        <p className="text-zinc-500 text-xs mt-1">Ein Preset mit diesem Namen wird überschrieben.</p>
+      )}
+      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+    </div>
+  );
+}
+
+export default function StylePicker({ style, onStyleChange, onRenderStart, transcribing, video, videoUrl }) {
+  const layout = captionLayout(style, video);
+  // Freie Eingabe im Pixel-Feld, ohne dass ein leeres/halbes Feld sofort zurückspringt
+  const [yDraft, setYDraft] = useState(null);
+
   function applyPreset(key) {
     onStyleChange({ ...PRESETS[key] });
   }
 
   function update(key, value) {
     onStyleChange({ ...style, [key]: value });
+  }
+
+  function setYPixels(px) {
+    update("positionY", pxToPercent(px, layout.height));
   }
 
   return (
@@ -54,7 +155,7 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
           <p className="text-zinc-400 mb-6 text-sm">Video hochgeladen. Wähle deinen Stil.</p>
 
           {/* Presets */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-4">
             {Object.entries(PRESET_LABELS).map(([key, { label, color }]) => (
               <button
                 key={key}
@@ -65,6 +166,8 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
               </button>
             ))}
           </div>
+
+          <UserPresets style={style} onApply={(preset) => onStyleChange({ ...preset })} />
 
           {/* Einstellungs-Panel */}
           <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-5 flex flex-col gap-4 mb-5">
@@ -124,7 +227,10 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
               <div>
                 <div className="flex justify-between mb-2">
                   <label className="text-zinc-300 text-sm font-medium">Schriftgröße</label>
-                  <span className="text-zinc-400 text-sm">{style.fontSize}px</span>
+                  <span className="text-zinc-400 text-sm">
+                    {style.fontSize}px
+                    {layout.scale !== 1 && <span className="text-zinc-600"> · {layout.fontSize}px im Video</span>}
+                  </span>
                 </div>
                 <input
                   type="range" min="24" max="80" step="2"
@@ -149,21 +255,58 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
               </div>
             </div>
 
-            <div className="border-t border-zinc-800 pt-4">
-              <p className="text-zinc-500 text-xs uppercase tracking-widest mb-3">Position</p>
+            <div className="border-t border-zinc-800 pt-4 flex flex-col gap-3">
+              <p className="text-zinc-500 text-xs uppercase tracking-widest">Position</p>
               <div className="flex gap-2">
-                {["top", "center", "bottom"].map((pos) => (
+                {POSITION_PRESETS.map(({ label, value }) => (
                   <button
-                    key={pos}
-                    onClick={() => update("position", pos)}
+                    key={label}
+                    onClick={() => update("positionY", value)}
                     className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors
-                      ${style.position === pos
+                      ${style.positionY === value
                         ? "bg-yellow-400 text-black"
                         : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"}`}
                   >
-                    {pos === "top" ? "Oben" : pos === "center" ? "Mitte" : "Unten"}
+                    {label}
                   </button>
                 ))}
+              </div>
+
+              {/* Exakte Y-Position: Unterkante der Textzeile in Videopixeln */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label htmlFor="position-y" className="text-zinc-300 text-sm font-medium">Y-Position</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="position-y"
+                      type="number"
+                      min="0"
+                      max={layout.height}
+                      step="1"
+                      value={yDraft ?? layout.posY}
+                      onChange={(e) => {
+                        setYDraft(e.target.value);
+                        const px = parseInt(e.target.value, 10);
+                        if (Number.isFinite(px)) setYPixels(px);
+                      }}
+                      onBlur={() => setYDraft(null)}
+                      className="w-20 bg-zinc-800 border border-zinc-700 text-zinc-200 text-sm rounded-lg px-2 py-1 text-right font-mono"
+                    />
+                    <span className="text-zinc-500 text-sm">/ {layout.height}px</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max={layout.height}
+                  step="1"
+                  value={layout.posY}
+                  onChange={(e) => setYPixels(parseInt(e.target.value, 10))}
+                  className="w-full accent-yellow-400"
+                />
+                <p className="text-zinc-600 text-xs mt-1">
+                  {style.positionY}% von oben · Unterkante der Zeile. Du kannst den Text auch in der Vorschau ziehen.
+                </p>
               </div>
             </div>
           </div>
@@ -184,9 +327,14 @@ export default function StylePicker({ style, onStyleChange, onRenderStart, trans
           </button>
         </div>
 
-        {/* Rechte Spalte: Mockup — gleiche Höhe wie Einstellungsbox */}
-        <div className="flex-1 flex justify-center">
-          <MockupPreview style={style} videoRatio={videoRatio} />
+        {/* Rechte Spalte: Vorschau in Videopixeln — gleiche Höhe wie Einstellungsbox */}
+        <div className="flex-1 relative min-w-0 min-h-[480px]">
+          <MockupPreview
+            style={style}
+            video={video}
+            videoUrl={videoUrl}
+            onPositionChange={(positionY) => update("positionY", positionY)}
+          />
         </div>
 
       </div>

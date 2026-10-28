@@ -20,14 +20,24 @@ function getOutputPath(jobId) {
   return path.join(OUTPUTS_DIR, `${jobId}_output.mp4`);
 }
 
+// Angezeigte Videogröße: FFmpeg dreht Handyvideos vor dem Filter automatisch,
+// daher bei 90°/270°-Rotation Breite und Höhe tauschen
+function getDisplaySize(metadata) {
+  const stream = metadata?.streams?.find((s) => s.codec_type === "video");
+  if (!stream?.width || !stream?.height) return null;
+  const rotation = Number(
+    stream.tags?.rotate ?? stream.side_data_list?.find((d) => d.rotation !== undefined)?.rotation ?? 0
+  );
+  const swapped = Math.abs(rotation) % 180 === 90;
+  return swapped
+    ? { width: stream.height, height: stream.width }
+    : { width: stream.width, height: stream.height };
+}
+
 // Rendert Untertitel ins Video. Löscht danach ASS + Quellvideo.
 function renderVideo({ jobId, videoPath, words, style, onProgress }) {
   return new Promise((resolve, reject) => {
-    // ASS in System-Temp schreiben (sicherer Pfad)
-    const assContent = generateASS(words, style || {});
     const assPath = getTempAssPath(jobId);
-    fs.writeFileSync(assPath, assContent, "utf8");
-    console.log(`[render] ASS: ${assPath} | ${assContent.length} bytes | ${(assContent.match(/^Dialogue:/gm) || []).length} Dialogue-Lines`);
 
     // Font neben die ASS-Datei ins Temp-Verzeichnis kopieren → libass findet ihn sicher
     const tmpDir = os.tmpdir();
@@ -50,6 +60,12 @@ function renderVideo({ jobId, videoPath, words, style, onProgress }) {
 
     ffmpeg.ffprobe(videoPath, (_probeErr, metadata) => {
       const totalDuration = metadata?.format?.duration || 0;
+
+      // ASS in System-Temp schreiben (sicherer Pfad), Koordinaten = echte Videogröße
+      const videoSize = getDisplaySize(metadata);
+      const assContent = generateASS(words, style || {}, videoSize);
+      fs.writeFileSync(assPath, assContent, "utf8");
+      console.log(`[render] ASS: ${assPath} | ${videoSize ? `${videoSize.width}x${videoSize.height}` : "Standardgröße"} | ${(assContent.match(/^Dialogue:/gm) || []).length} Dialogue-Lines`);
 
       ffmpeg(videoPath)
         .videoFilters(filterStr)

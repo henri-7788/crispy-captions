@@ -139,3 +139,11 @@ export async function downloadVideo(jobId) {
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// ---- Presets (pro User) ----
+
+export const presets = {
+  list: () => axios.get(`${BASE}/api/presets`),
+  save: (name, style) => axios.post(`${BASE}/api/presets`, { name, style }),
+  remove: (id) => axios.delete(`${BASE}/api/presets/${id}`),
+};

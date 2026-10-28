@@ -39,38 +39,55 @@ function chunkWords(words, maxPerChunk = DEFAULT_MAX_PER_CHUNK) {
   return chunks;
 }
 
-function buildHeader(style) {
-  const primaryColor = toASSColor(style.highlightColor || "#FFFF00");
-  const fontName = style.fontName || "Arial";
-  const fontSize = style.fontSize || 52;
+// Referenzauflösung: Style-Werte gelten für ein Video mit kurzer Seite 1080 px
+// (gleiche Rechnung wie captionLayout() in frontend/src/captionLayout.js)
+const REFERENCE_SHORT_SIDE = 1080;
+const DEFAULT_VIDEO = { width: 1080, height: 1920 };
 
+function getLayout(style, video) {
+  const width = video?.width || DEFAULT_VIDEO.width;
+  const height = video?.height || DEFAULT_VIDEO.height;
+  const k = Math.min(width, height) / REFERENCE_SHORT_SIDE;
+  return {
+    width,
+    height,
+    fontSize: Math.round((style.fontSize || 52) * k),
+    outline: style.outlineColor === "none" ? 0 : Math.round(3.5 * k * 100) / 100,
+    shadow: Math.round(1.5 * k * 100) / 100,
+    marginX: Math.round(80 * k),
+    posX: Math.round(width / 2),
+    posY: Math.round(((style.positionY ?? 91.15) / 100) * height),
+  };
+}
+
+// libass findet Schriften nur über den Familiennamen, nicht über den PostScript-Namen
+const ASS_FONT_NAMES = {
+  "THEBOLDFONT-FREEVERSION": "THE BOLD FONT (FREE VERSION)",
+};
+
+function buildHeader(style, layout) {
+  const primaryColor = toASSColor(style.highlightColor || "#FFFF00");
+  const fontName = ASS_FONT_NAMES[style.fontName] || style.fontName || "Arial";
   const noOutline = style.outlineColor === "none";
   const outlineColor = noOutline ? "&H00000000&" : toASSColor(style.outlineColor || "#000000");
-  const outlineSize = noOutline ? 0 : 3.5;
+  const { width, height, fontSize, outline, shadow, marginX } = layout;
 
+  // PlayRes = echte Videogröße → 1 ASS-Einheit = 1 Videopixel, keine Verzerrung bei Querformat
   return `[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
-PlayResY: 1920
+PlayResX: ${width}
+PlayResY: ${height}
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontName},${fontSize},${primaryColor},&H000000FF&,${outlineColor},&H96000000&,-1,0,0,0,100,100,0,0,1,${outlineSize},1.5,2,80,80,60,1
+Style: Default,${fontName},${fontSize},${primaryColor},&H000000FF&,${outlineColor},&H96000000&,-1,0,0,0,100,100,0,0,1,${outline},${shadow},2,${marginX},${marginX},60,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text`;
 }
 
-function getPositionY(position) {
-  switch (position) {
-    case "top": return 170;
-    case "center": return 960;
-    default: return 1750;
-  }
-}
-
-function buildDialogueLine(chunk, activeIndex, posY, style) {
+function buildDialogueLine(chunk, activeIndex, layout, style) {
   const activeWord = chunk[activeIndex];
   const start = toASSTimestamp(activeWord.start);
   const end = toASSTimestamp(activeWord.end);
@@ -86,21 +103,22 @@ function buildDialogueLine(chunk, activeIndex, posY, style) {
       : `{\\c${dimColor}}${word}`;
   });
 
-  const text = `{\\an2\\pos(540,${posY})}${textParts.join(" ")}`;
+  const text = `{\\an2\\pos(${layout.posX},${layout.posY})}${textParts.join(" ")}`;
   return `Dialogue: 0,${start},${end},Default,,0,0,0,,${text}`;
 }
 
-function generateASS(words, style = {}) {
+// video: { width, height } des (rotationskorrigierten) Videos
+function generateASS(words, style = {}, video = null) {
   if (!words || words.length === 0) return "";
 
-  const posY = getPositionY(style.position);
+  const layout = getLayout(style, video);
   const maxPerChunk = style.wordsPerLine || DEFAULT_MAX_PER_CHUNK;
   const chunks = chunkWords(words, maxPerChunk);
-  const lines = [buildHeader(style)];
+  const lines = [buildHeader(style, layout)];
 
   for (const chunk of chunks) {
     for (let i = 0; i < chunk.length; i++) {
-      lines.push(buildDialogueLine(chunk, i, posY, style));
+      lines.push(buildDialogueLine(chunk, i, layout, style));
     }
   }
 

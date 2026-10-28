@@ -49,7 +49,7 @@ export default function UploadArea({ onUploadComplete }) {
 
     setUploading(false);
     if (uploadResult) {
-      onUploadComplete({ ...uploadResult.data, videoRatio: dimensions });
+      onUploadComplete({ ...uploadResult.data, video: dimensions, file });
     }
   }
 

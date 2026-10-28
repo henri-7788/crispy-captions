@@ -83,13 +83,13 @@ Authentifizierung mit demselben Token wie im Web-UI (`Authorization: Bearer <tok
 | `GET` | `/api/v1/jobs/:id/download` | fertiges MP4 (einmalig, danach gelöscht → Status `downloaded`) |
 | `GET` | `/api/v1/jobs` | eigene Jobs (max. 100) |
 
-`style`-Felder (alle optional): `highlightColor`, `dimColor` (`#RRGGBB`), `outlineColor` (`#RRGGBB` oder `none`), `fontName`, `fontSize` (12–200), `position` (`top`/`center`/`bottom`), `wordsPerLine` (1–15).
+`style`-Felder (alle optional): `highlightColor`, `dimColor` (`#RRGGBB`), `outlineColor` (`#RRGGBB` oder `none`), `fontName`, `fontSize` (12–200, Pixel bezogen auf ein 1080p-Video, wird mit der Auflösung skaliert), `positionY` (0–100, Unterkante der Textzeile in % der Videohöhe; alternativ `position`: `top`/`center`/`bottom`), `wordsPerLine` (1–15).
 
 ```bash
 TOKEN=$(curl -s -X POST localhost:3001/api/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"a@b.de","password":"..."}' | jq -r .token)
 curl -X POST localhost:3001/api/v1/jobs -H "Authorization: Bearer $TOKEN" \
-  -F video=@clip.mp4 -F 'style={"highlightColor":"#26E200","position":"bottom"}'
+  -F video=@clip.mp4 -F 'style={"highlightColor":"#26E200","positionY":85}'
 curl localhost:3001/api/v1/jobs/<jobId> -H "Authorization: Bearer $TOKEN"
 curl -o out.mp4 localhost:3001/api/v1/jobs/<jobId>/download -H "Authorization: Bearer $TOKEN"
 ```

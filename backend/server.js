@@ -5,7 +5,10 @@ const fs = require("fs");
 const path = require("path");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+// ffprobe liefert Videogröße (für die ASS-Koordinaten) und Dauer (für den Fortschritt)
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
 const { requireAuth } = require("./middleware/auth");
 const { getOwnedJob } = require("./services/jobs");
@@ -15,6 +18,7 @@ const apiRoute = require("./routes/api");
 const uploadRoute = require("./routes/upload");
 const transcribeRoute = require("./routes/transcribe");
 const renderRoute = require("./routes/render");
+const presetsRoute = require("./routes/presets");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,6 +57,7 @@ app.use("/api/v1", requireAuth, apiRoute);
 app.use("/api/upload", requireAuth, uploadRoute);
 app.use("/api/transcribe", requireAuth, transcribeRoute);
 app.use("/api/render", requireAuth, renderRoute);
+app.use("/api/presets", requireAuth, presetsRoute);
 
 app.get("/api/download/:jobId", requireAuth, (req, res) => {
   const job = getOwnedJob(req.params.jobId, req.user.id);

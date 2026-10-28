@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { transcribeVideo } from "./api";
 import UploadArea from "./components/UploadArea";
 import StylePicker from "./components/StylePicker";
@@ -14,7 +14,7 @@ const DEFAULT_STYLE = {
   outlineColor: "#000000",
   fontName: "THEBOLDFONT-FREEVERSION",
   fontSize: 52,
-  position: "bottom",
+  positionY: 91.15,
   wordsPerLine: 5,
 };
 
@@ -67,16 +67,24 @@ function CaptionFlow() {
   const [step, setStep] = useState("upload");
   const [jobId, setJobId] = useState(null);
   const [filename, setFilename] = useState(null);
-  const [videoRatio, setVideoRatio] = useState(null);
+  const [video, setVideo] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
   const [words, setWords] = useState([]);
   const [style, setStyle] = useState(DEFAULT_STYLE);
   const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState(null);
 
-  function handleUploadComplete({ jobId, filename, videoRatio }) {
+  // Lokale Kopie des Videos für die Vorschau; alte URL freigeben
+  useEffect(() => {
+    if (!videoUrl) return;
+    return () => URL.revokeObjectURL(videoUrl);
+  }, [videoUrl]);
+
+  function handleUploadComplete({ jobId, filename, video, file }) {
     setJobId(jobId);
     setFilename(filename);
-    setVideoRatio(videoRatio);
+    setVideo(video);
+    setVideoUrl(URL.createObjectURL(file));
     setStep("styling");
   }
 
@@ -107,7 +115,8 @@ function CaptionFlow() {
     setStep("upload");
     setJobId(null);
     setFilename(null);
-    setVideoRatio(null);
+    setVideo(null);
+    setVideoUrl(null);
     setWords([]);
     setStyle(DEFAULT_STYLE);
     setError(null);
@@ -134,7 +143,8 @@ function CaptionFlow() {
           onStyleChange={setStyle}
           onRenderStart={handleRenderStart}
           transcribing={transcribing}
-          videoRatio={videoRatio}
+          video={video}
+          videoUrl={videoUrl}
         />
       )}
       {step === "rendering" && (
