@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("crypto");
 const { createJob } = require("../services/jobs");
 
 const router = express.Router();
@@ -14,7 +14,7 @@ const storage = multer.diskStorage({
   destination: path.join(__dirname, "../../uploads"),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ALLOWED_EXTS.includes(ext) ? ext : ".mp4"}`);
+    cb(null, `${randomUUID()}${ALLOWED_EXTS.includes(ext) ? ext : ".mp4"}`);
   },
 });
 
