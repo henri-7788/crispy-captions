@@ -11,9 +11,21 @@ function serializePreset(row) {
   return { id: row.id, name: row.name, style: normalizeStyle(JSON.parse(row.style)), createdAt: row.created_at };
 }
 
+function listPresets(userId) {
+  return db.prepare("SELECT * FROM presets WHERE user_id = ? ORDER BY created_at, id").all(userId).map(serializePreset);
+}
+
+// Für die API: Preset per Name (ohne Groß-/Kleinschreibung) oder per ID
+function findPreset(userId, nameOrId) {
+  const value = String(nameOrId).trim();
+  const row =
+    db.prepare("SELECT * FROM presets WHERE user_id = ? AND name = ? COLLATE NOCASE").get(userId, value) ||
+    (/^\d+$/.test(value) ? db.prepare("SELECT * FROM presets WHERE user_id = ? AND id = ?").get(userId, value) : null);
+  return row ? serializePreset(row) : null;
+}
+
 router.get("/", (req, res) => {
-  const rows = db.prepare("SELECT * FROM presets WHERE user_id = ? ORDER BY created_at, id").all(req.user.id);
-  res.json({ presets: rows.map(serializePreset) });
+  res.json({ presets: listPresets(req.user.id) });
 });
 
 // Gleicher Name → bestehendes Preset wird überschrieben
@@ -51,3 +63,5 @@ router.delete("/:id", (req, res) => {
 });
 
 module.exports = router;
+module.exports.listPresets = listPresets;
+module.exports.findPreset = findPreset;

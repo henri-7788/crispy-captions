@@ -147,3 +147,11 @@ export const presets = {
   save: (name, style) => axios.post(`${BASE}/api/presets`, { name, style }),
   remove: (id) => axios.delete(`${BASE}/api/presets/${id}`),
 };
+
+// ---- API-Keys (für /api/v1) ----
+
+export const apiKeys = {
+  list: () => axios.get(`${BASE}/api/keys`),
+  create: (name) => axios.post(`${BASE}/api/keys`, { name }),
+  revoke: (id) => axios.delete(`${BASE}/api/keys/${id}`),
+};

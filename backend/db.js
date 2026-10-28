@@ -57,6 +57,17 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (user_id, name)
   );
+
+  -- Persönliche API-Keys für /api/v1; gespeichert wird nur der SHA-256-Hash
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    key_hash TEXT NOT NULL UNIQUE,
+    prefix TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_used_at TEXT
+  );
 `);
 
 // Dateien werden beim Start ohnehin gelöscht → laufende Jobs sind verloren

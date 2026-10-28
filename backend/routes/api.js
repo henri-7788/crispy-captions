@@ -9,6 +9,7 @@ const { createJob, getOwnedJob, updateJob, getUploadPath } = require("../service
 const { normalizeStyle } = require("../utils/style");
 const { enqueue } = require("../services/queue");
 const { checkTranscriptionQuota, recordTranscription } = require("../services/quota");
+const { listPresets, findPreset } = require("./presets");
 
 const router = express.Router();
 
@@ -78,6 +79,17 @@ router.post("/jobs", requireQuota, upload.single("video"), (req, res) => {
     }
   }
 
+  // Optional: gespeichertes Preset als Basis, einzelne Felder per 'style' überschreibbar
+  let preset = null;
+  if (req.body.preset) {
+    preset = findPreset(req.user.id, req.body.preset);
+    if (!preset) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: `Preset '${req.body.preset}' nicht gefunden (GET /api/v1/presets listet deine Presets)` });
+    }
+    styleInput = { ...preset.style, ...styleInput };
+  }
+
   const jobId = path.parse(req.file.filename).name;
   createJob({ id: jobId, userId: req.user.id, filename: req.file.filename, source: "api" });
   updateJob(jobId, { status: "queued" });
@@ -85,7 +97,11 @@ router.post("/jobs", requireQuota, upload.single("video"), (req, res) => {
   const style = normalizeStyle(styleInput);
   enqueue(() => processJob(jobId, style));
 
-  res.status(202).json({ jobId, status: "queued", statusUrl: `/api/v1/jobs/${jobId}`, style });
+  res.status(202).json({ jobId, status: "queued", statusUrl: `/api/v1/jobs/${jobId}`, preset: preset?.name, style });
+});
+
+router.get("/presets", (req, res) => {
+  res.json({ presets: listPresets(req.user.id) });
 });
 
 router.get("/jobs", (req, res) => {

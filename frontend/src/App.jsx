@@ -6,6 +6,7 @@ import ProgressBar from "./components/ProgressBar";
 import DownloadButton from "./components/DownloadButton";
 import LoginPage from "./components/LoginPage";
 import AdminPanel from "./components/AdminPanel";
+import ApiSettings from "./components/ApiSettings";
 import { useAuth } from "./auth";
 
 const DEFAULT_STYLE = {
@@ -42,12 +43,28 @@ export default function App() {
     <div className="min-h-screen bg-zinc-950">
       <header className="fixed top-4 right-4 z-40 flex items-center gap-3 text-sm">
         <span className="text-zinc-500 hidden sm:inline">{user.email}</span>
-        {user.role === "admin" && (
+        {view !== "app" && (
           <button
-            onClick={() => setView(view === "admin" ? "app" : "admin")}
+            onClick={() => setView("app")}
             className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
           >
-            {view === "admin" ? "Zurück" : "Admin"}
+            Zurück
+          </button>
+        )}
+        {view !== "api" && (
+          <button
+            onClick={() => setView("api")}
+            className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+          >
+            API
+          </button>
+        )}
+        {user.role === "admin" && view !== "admin" && (
+          <button
+            onClick={() => setView("admin")}
+            className="px-3 py-1.5 rounded-full bg-zinc-800 text-zinc-200 hover:bg-zinc-700 transition-colors"
+          >
+            Admin
           </button>
         )}
         <button
@@ -58,7 +75,12 @@ export default function App() {
         </button>
       </header>
 
-      {view === "admin" && user.role === "admin" ? <AdminPanel /> : <CaptionFlow />}
+      {view === "admin" && user.role === "admin" && <AdminPanel />}
+      {view === "api" && <ApiSettings />}
+      {/* Editor bleibt gemountet, damit ein laufender Upload/Stil beim Wechsel zur API-Seite nicht verloren geht */}
+      <div className={view === "app" ? "" : "hidden"}>
+        <CaptionFlow />
+      </div>
     </div>
   );
 }

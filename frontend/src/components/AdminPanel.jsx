@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { admin } from "../api";
 import { useAuth } from "../auth";
-
-function formatDate(value) {
-  if (!value) return "—";
-  // SQLite liefert "YYYY-MM-DD HH:MM:SS" in UTC
-  const d = new Date(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
-  return d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
-}
+import { formatDate } from "../format";
 
 function inviteStatus(invite) {
   if (invite.usedAt) return { label: `benutzt von ${invite.usedBy || "gelöschtem User"}`, className: "text-zinc-500" };
